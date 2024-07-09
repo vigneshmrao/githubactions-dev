@@ -11,7 +11,7 @@ jobs:
 
     env:
       AWS_REGION_1: "ap-south-1"
-      AWS_REGION_2: "eu-west-1"
+      AWS_REGION_2: "ap-southeast-1"
       ECS_CLUSTER: "ecs-cluster"
       ECS_SERVICE: "ecs-service"
       IMAGE_REPO_NAME: "ecr-dev"
