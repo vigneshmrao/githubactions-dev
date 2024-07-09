@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        region: ['ap-south-1', 'eu-central-1']
+        region: ['ap-south-1']
 
     steps:
     - name: Checkout code
