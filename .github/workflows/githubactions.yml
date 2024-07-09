@@ -44,8 +44,8 @@ jobs:
       run: |
         REGION=${{ matrix.region }}
         CLUSTER_NAME=ecs-cluster-${{ matrix.region }}
-        TASK_DEFINITION_NAME=my-ecs-task-def-${{ matrix.region }}
-        SERVICE_NAME=my-ecs-service-${{ matrix.region }}
+        TASK_DEFINITION_NAME=ecs-task-definition-${{ matrix.region }}
+        SERVICE_NAME=ecs-service-${{ matrix.region }}
         IMAGE_URI=$ECR_REGISTRY/<ecr-dev>:$IMAGE_TAG
 
         # Update the ECS service with the new image
