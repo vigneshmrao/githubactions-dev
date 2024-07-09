@@ -1,0 +1,16 @@
+{
+  "name": "nodejs-aws-secrets",
+  "version": "1.0.0",
+  "description": "A Node.js application that retrieves secrets from AWS Secrets Manager and connects to PostgreSQL",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.999.0",
+    "express": "^4.17.1",
+    "pg": "^8.6.0"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}
