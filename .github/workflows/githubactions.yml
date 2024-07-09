@@ -9,10 +9,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        region: ['ap-south-1']  # Define your AWS region here
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -22,14 +18,15 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ matrix.region }}
+          aws-region: ap-south-1  # Specify your AWS region here
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         with:
-          registry-type: 'AWS'  # Use AWS registry type
-          region: ${{ matrix.region }}
+          registry-type: private  # Use 'private' for AWS ECR
+          mask-password: false
+          skip-logout: false
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
@@ -45,15 +42,13 @@ jobs:
 
       - name: Deploy to ECS
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ matrix.region }}
+          AWS_REGION: ap-south-1
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          REGION=${{ matrix.region }}
-          CLUSTER_NAME=ecs-cluster-${{ matrix.region }}
-          SERVICE_NAME=ecs-service-${{ matrix.region }}
+          REGION=ap-south-1
+          CLUSTER_NAME=ecs-cluster-ap-south-1  # Adjust according to your cluster name
+          SERVICE_NAME=ecs-service-ap-south-1  # Adjust according to your service name
           IMAGE_URI=$ECR_REGISTRY/<ecr-dev>:$IMAGE_TAG
 
           # Update the ECS service with the new image
@@ -61,8 +56,8 @@ jobs:
 
       - name: Verify deployment
         env:
-          AWS_REGION: ${{ matrix.region }}
+          AWS_REGION: ap-south-1
         run: |
           sleep 60
-          SERVICE_URL=$(aws ecs describe-services --cluster ecs-cluster-${{ matrix.region }} --services ecs-service-${{ matrix.region }} --region ${{ matrix.region }} --query "services[0].loadBalancers[0].loadBalancerName" --output text)
+          SERVICE_URL=$(aws ecs describe-services --cluster ecs-cluster-ap-south-1 --services ecs-service-ap-south-1 --region ap-south-1 --query "services[0].loadBalancers[0].loadBalancerName" --output text)
           curl http://$SERVICE_URL/db-connect
