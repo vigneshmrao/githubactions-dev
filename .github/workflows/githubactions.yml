@@ -6,58 +6,49 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION_1: "ap-south-1"
+      AWS_REGION_2: "eu-west-1"
+      ECS_CLUSTER: "ecs-cluster"
+      ECS_SERVICE: "ecs-service"
+      IMAGE_REPO_NAME: "ecr-dev"
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1  # Specify your AWS region here
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION_1 }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: private  # Use 'private' for AWS ECR
-          mask-password: false
-          skip-logout: false
+    - name: Log in to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          IMAGE_REPO_NAME=<ecr-dev>
+    - name: Build, tag, and push image to ECR
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+        docker tag $IMAGE_REPO_NAME:$IMAGE_TAG ${{ steps.login-ecr.outputs.registry }}/$IMAGE_REPO_NAME:$IMAGE_TAG
+        docker push ${{ steps.login-ecr.outputs.registry }}/$IMAGE_REPO_NAME:$IMAGE_TAG
 
-          docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
-          docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
+    - name: Deploy to ECS in Region 1
+      env:
+        IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/$IMAGE_REPO_NAME:${{ github.sha }}
+      run: |
+        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION_1
 
-      - name: Deploy to ECS
-        env:
-          AWS_REGION: ap-south-1
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          REGION=ap-south-1
-          CLUSTER_NAME=ecs-cluster-ap-south-1  # Adjust according to your cluster name
-          SERVICE_NAME=ecs-service-ap-south-1  # Adjust according to your service name
-          IMAGE_URI=$ECR_REGISTRY/<ecr-dev>:$IMAGE_TAG
-
-          # Update the ECS service with the new image
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $REGION --desired-count 1
-
-      - name: Verify deployment
-        env:
-          AWS_REGION: ap-south-1
-        run: |
-          sleep 60
-          SERVICE_URL=$(aws ecs describe-services --cluster ecs-cluster-ap-south-1 --services ecs-service-ap-south-1 --region ap-south-1 --query "services[0].loadBalancers[0].loadBalancerName" --output text)
-          curl http://$SERVICE_URL/db-connect
+    - name: Deploy to ECS in Region 2
+      env:
+        IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/$IMAGE_REPO_NAME:${{ github.sha }}
+      run: |
+        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION_2
