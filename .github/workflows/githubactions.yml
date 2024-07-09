@@ -1,0 +1,56 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        region: ['ap-south-1', 'ap-southeast-1']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        IMAGE_REPO_NAME=nodejs-ecs-app
+
+        docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+        docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
+
+    - name: Deploy to ECS
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        DB_SECRET_NAME: my-db-secret-${{ matrix.region }}
+      run: |
+        REGION=${{ matrix.region }}
+        CLUSTER_NAME=my-ecs-cluster-${{ matrix.region }}
+        SERVICE_NAME=my-ecs-service-${{ matrix.region }}
+        IMAGE_URI=${{ steps.build-image.outputs.ECR_REGISTRY }}/nodejs-ecs-app:${{ github.sha }}
+
+        aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $REGION --desired-count 1
+
+    - name: Verify deployment
+      env:
+        AWS_REGION: ${{ matrix.region }}
+      run: |
+        sleep 60
+        SERVICE_URL=$(aws ecs describe-services --cluster my-ecs-cluster-${{ matrix.region }} --services my-ecs-service-${{ matrix.region }} --region ${{ matrix.region }} --query "services[0].loadBalancers[0].loadBalancerName" --output text)
+        curl http://$SERVICE_URL/db-connect
+
