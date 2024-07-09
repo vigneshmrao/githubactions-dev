@@ -27,7 +27,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        IMAGE_REPO_NAME=<your-ecr-repo-name>
+        IMAGE_REPO_NAME=<ecr-dev>
 
         docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
         docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
@@ -43,10 +43,10 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         REGION=${{ matrix.region }}
-        CLUSTER_NAME=my-ecs-cluster-${{ matrix.region }}
+        CLUSTER_NAME=ecs-cluster-${{ matrix.region }}
         TASK_DEFINITION_NAME=my-ecs-task-def-${{ matrix.region }}
         SERVICE_NAME=my-ecs-service-${{ matrix.region }}
-        IMAGE_URI=$ECR_REGISTRY/<your-ecr-repo-name>:$IMAGE_TAG
+        IMAGE_URI=$ECR_REGISTRY/<ecr-dev>:$IMAGE_TAG
 
         # Update the ECS service with the new image
         aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $REGION --desired-count 1
